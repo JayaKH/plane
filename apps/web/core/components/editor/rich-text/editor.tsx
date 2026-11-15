@@ -12,6 +12,7 @@ import type { MakeOptional, TSearchEntityRequestPayload, TSearchResponse } from 
 import { cn } from "@plane/utils";
 // components
 import { EditorMentionsRoot } from "@/components/editor/embeds/mentions";
+import { EditorMentionsProvider } from "@/components/editor/embeds/mentions/provider";
 // hooks
 import { useEditorConfig, useEditorMention } from "@/hooks/editor";
 import { useMember } from "@/hooks/store/use-member";
@@ -61,6 +62,7 @@ export const RichTextEditor = forwardRef(function RichTextEditor(
   });
   // use editor mention
   const { fetchMentions } = useEditorMention({
+    enableAdvancedMentions: true,
     searchEntity: editable ? async (payload) => await props.searchMentionCallback(payload) : async () => ({}),
   });
   // editor config
@@ -72,34 +74,38 @@ export const RichTextEditor = forwardRef(function RichTextEditor(
   });
 
   return (
-    <RichTextEditorWithRef
-      ref={ref}
-      disabledExtensions={[...richTextEditorExtensions.disabled, ...(additionalDisabledExtensions ?? [])]}
-      editable={editable}
-      flaggedExtensions={richTextEditorExtensions.flagged}
-      fileHandler={getEditorFileHandlers({
-        projectId,
-        uploadFile: editable ? props.uploadFile : async () => "",
-        duplicateFile: editable ? props.duplicateFile : async () => "",
-        workspaceId,
-        workspaceSlug,
-      })}
-      getEditorMetaData={getEditorMetaData}
-      mentionHandler={{
-        searchCallback: async (query) => {
-          const res = await fetchMentions(query);
-          if (!res) throw new Error("Failed in fetching mentions");
-          return res;
-        },
-        renderComponent: EditorMentionsRoot,
-        getMentionedEntityDetails: (id) => ({
-          display_name: getUserDetails(id)?.display_name ?? "",
-        }),
-      }}
-      extendedEditorProps={{}}
-      {...rest}
-      containerClassName={cn("relative pb-3 pl-3", containerClassName)}
-    />
+    <EditorMentionsProvider
+      projectId={projectId}
+    >
+      <RichTextEditorWithRef
+        ref={ref}
+        disabledExtensions={[...richTextEditorExtensions.disabled, ...(additionalDisabledExtensions ?? [])]}
+        editable={editable}
+        flaggedExtensions={richTextEditorExtensions.flagged}
+        fileHandler={getEditorFileHandlers({
+          projectId,
+          uploadFile: editable ? props.uploadFile : async () => "",
+          duplicateFile: editable ? props.duplicateFile : async () => "",
+          workspaceId,
+          workspaceSlug,
+        })}
+        getEditorMetaData={getEditorMetaData}
+        mentionHandler={{
+          searchCallback: async (query) => {
+            const res = await fetchMentions(query);
+            if (!res) throw new Error("Failed in fetching mentions");
+            return res;
+          },
+          renderComponent: EditorMentionsRoot,
+          getMentionedEntityDetails: (id) => ({
+            display_name: getUserDetails(id)?.display_name ?? "",
+          }),
+        }}
+        extendedEditorProps={{}}
+        {...rest}
+        containerClassName={cn("relative pb-3 pl-3", containerClassName)}
+      />
+    </EditorMentionsProvider>
   );
 });
 

@@ -15,6 +15,11 @@ export type TCoreCustomComponentsMetaData = {
     display_name: string;
     url: string;
   }[];
+  page_mentions: {
+    id: string;
+    name: string;
+    url: string;
+  }[];
 };
 
 export type TExtendedCustomComponentsMetaData = unknown;

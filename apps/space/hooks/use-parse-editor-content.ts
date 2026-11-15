@@ -41,22 +41,26 @@ export const useParseEditorContent = (args: TArgs) => {
           }
         }
       });
-      // process user mentions
+      // process user mentions (todo: page mentions)
       const userMentions: TCustomComponentsMetaData["user_mentions"] = [];
+      const pageMentions: TCustomComponentsMetaData["page_mentions"] = [];
       const mentionComponents = doc.querySelectorAll("mention-component");
       mentionComponents.forEach((element) => {
         const id = element.getAttribute("entity_identifier");
         if (id) {
-          const userDetails = getMemberById(id);
+          const entityType = element.getAttribute("entity_name");
           const originUrl = typeof window !== "undefined" && (window.location.origin ?? "");
-          const path = `profile/${id}`;
-          const url = `${originUrl}/${path}`;
-          if (userDetails) {
-            userMentions.push({
-              id,
-              display_name: userDetails.member__display_name,
-              url,
-            });
+          if (entityType === "user_mention") {
+            const userDetails = getMemberById(id);
+            const path = `profile/${id}`;
+            const url = `${originUrl}/${path}`;
+            if (userDetails) {
+              userMentions.push({
+                id,
+                display_name: userDetails.member__display_name,
+                url,
+              });
+            }
           }
         }
       });
@@ -64,6 +68,7 @@ export const useParseEditorContent = (args: TArgs) => {
       return {
         file_assets: imageMetaData,
         user_mentions: userMentions,
+        page_mentions: pageMentions,
       };
     },
     [anchor, getMemberById]
