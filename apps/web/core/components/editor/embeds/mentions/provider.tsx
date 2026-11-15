@@ -13,7 +13,6 @@ export const EditorMentionsProvider = observer(function EditorMentionsProvider(p
 
     return (
         <EditorMentionsContext.Provider
-            // oxlint-disable-next-line react/jsx-no-constructed-context-values
             value={{
                 projectId: projectId ?? undefined
             }}
