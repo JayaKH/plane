@@ -1,0 +1,160 @@
+name: "Build and Push Docker Image to GHCR"
+description: "Builds a Docker image using Buildx and publishes it to GitHub Container Registry (GHCR)"
+
+inputs:
+  registry:
+    description: "Container registry host"
+    required: false
+    default: "ghcr.io"
+  push:
+    description: "Whether to push image to registry"
+    required: false
+    default: "true"
+  registry-username:
+    description: "Username for authenticating to registry"
+    required: false
+    default: ""
+  registry-token:
+    description: "Token for authenticating to registry"
+    required: false
+    default: ""
+
+  # Docker Image Options
+  image-owner:
+    description: "Registry owner / organization (lowercase)"
+    required: false
+    default: ""
+  image-name:
+    description: "Name of the Docker image (e.g. plane-frontend)"
+    required: true
+  build-context:
+    description: "Docker build context"
+    required: false
+    default: "."
+  dockerfile-path:
+    description: "Path to Dockerfile"
+    required: false
+    default: "Dockerfile"
+  build-args:
+    description: "Build arguments for docker build"
+    required: false
+    default: ""
+
+  # Buildx Options
+  buildx-driver:
+    description: "Target driver for buildx"
+    required: true
+    default: "docker-container"
+  buildx-version:
+    description: "Target version for buildx"
+    required: true
+    default: "latest"
+  buildx-platforms:
+    description: "Target platforms for buildx (e.g. linux/amd64,linux/arm64)"
+    required: false
+    default: "linux/amd64"
+
+  # Release Build Options
+  build-release:
+    description: "Whether this is a release build"
+    required: false
+    default: "false"
+  build-prerelease:
+    description: "Whether this is a prerelease"
+    required: false
+    default: "false"
+  release-version:
+    description: "Release version tag (e.g. v1.4.3)"
+    required: false
+    default: ""
+
+  additional-assets:
+    description: "Additional assets to download"
+    required: false
+    default: ""
+  additional-assets-dir:
+    description: "Additional assets directory"
+    required: false
+    default: ""
+
+outputs:
+  tags:
+    description: "Generated image tags"
+    value: ${{ steps.meta.outputs.tags }}
+  image:
+    description: "Full image reference (without tag)"
+    value: ${{ steps.prep.outputs.full_image }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare Image Reference
+      id: prep
+      shell: bash
+      run: |
+        REGISTRY="${{ inputs.registry }}"
+        OWNER="${{ inputs.image-owner }}"
+        if [ -z "$OWNER" ]; then
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        else
+          OWNER=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+        fi
+
+        IMG="${{ inputs.image-name }}"
+        if [[ "$IMG" == *"/"* ]]; then
+          if [[ "$IMG" == "$REGISTRY/"* ]]; then
+            FULL_IMAGE="$IMG"
+          else
+            FULL_IMAGE="${REGISTRY}/${IMG}"
+          fi
+        else
+          FULL_IMAGE="${REGISTRY}/${OWNER}/${IMG}"
+        fi
+        echo "full_image=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+        echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+    - name: Login to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.registry-username || github.actor }}
+        password: ${{ inputs.registry-token || github.token }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver: ${{ inputs.buildx-driver }}
+        version: ${{ inputs.buildx-version }}
+
+    - name: Extract Docker metadata
+      id: meta
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ steps.prep.outputs.full_image }}
+        tags: |
+          type=raw,value=${{ inputs.release-version }},enable=${{ inputs.build-release == 'true' && inputs.release-version != '' }}
+          type=raw,value=latest,enable=${{ inputs.build-release == 'true' && inputs.build-prerelease != 'true' }}
+
+    - name: Download Additional Assets
+      if: ${{ inputs.additional-assets != '' && inputs.additional-assets-dir != '' }}
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.additional-assets }}
+        path: ${{ inputs.additional-assets-dir }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v7
+      with:
+        context: ${{ inputs.build-context }}
+        file: ${{ inputs.dockerfile-path }}
+        platforms: ${{ inputs.buildx-platforms }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        push: ${{ inputs.push }}
+        build-args: ${{ inputs.build-args }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: false
