@@ -49,9 +49,9 @@ export const useParseEditorContent = (args: TArgs) => {
         const id = element.getAttribute("entity_identifier");
         if (id) {
           const entityType = element.getAttribute("entity_name");
-          const originUrl = typeof window !== "undefined" && (window.location.origin ?? "");
           if (entityType === "user_mention") {
             const userDetails = getMemberById(id);
+            const originUrl = typeof window !== "undefined" && (window.location.origin ?? "");
             const path = `profile/${id}`;
             const url = `${originUrl}/${path}`;
             if (userDetails) {
