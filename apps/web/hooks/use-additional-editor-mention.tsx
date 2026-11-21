@@ -47,7 +47,7 @@ export const useAdditionalEditorMention = (_args: TUseAdditionalEditorMentionArg
     []
   );
 
-  const editorMentionTypes: TSearchEntities[] = useMemo(() => ["user_mention"], []);
+  const editorMentionTypes: TSearchEntities[] = useMemo(() => ["user_mention", "page"], []);
 
   return {
     updateAdditionalSections,

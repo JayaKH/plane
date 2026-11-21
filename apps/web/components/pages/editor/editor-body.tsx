@@ -25,6 +25,7 @@ import { ERowVariant, Row } from "@plane/blocks/layout";
 import { cn, generateRandomColor, hslToHex } from "@plane/utils";
 // components
 import { EditorMentionsRoot } from "@/components/editor/embeds/mentions";
+import { EditorMentionsProvider } from "@/components/editor/embeds/mentions/provider";
 // hooks
 import { useEditorMention } from "@/hooks/editor";
 import { useMember } from "@/hooks/store/use-member";
@@ -274,39 +275,41 @@ export const PageEditorBody = observer(function PageEditorBody(props: Props) {
               <PageEditorHeaderRoot page={page} projectId={projectId} />
             </div>
           </div>
-          <CollaborativeDocumentEditorWithRef
-            editable={isContentEditable}
-            id={pageId}
-            fileHandler={config.fileHandler}
-            handleEditorReady={handleEditorReady}
-            ref={editorForwardRef}
-            titleRef={titleEditorRef}
-            containerClassName="h-full p-0 pb-64"
-            displayConfig={displayConfig}
-            getEditorMetaData={getEditorMetaData}
-            mentionHandler={{
-              searchCallback: async (query) => {
-                const res = await fetchMentions(query);
-                if (!res) throw new Error("Failed in fetching mentions");
-                return res;
-              },
-              // oxlint-disable-next-line no-shadow
-              renderComponent: (props) => <EditorMentionsRoot {...props} />,
-              getMentionedEntityDetails: (id: string) => ({ display_name: getUserDetails(id)?.display_name ?? "" }),
-            }}
-            updatePageProperties={updatePageProperties}
-            realtimeConfig={realtimeConfig}
-            serverHandler={serverHandler}
-            user={userConfig}
-            disabledExtensions={documentEditorExtensions.disabled}
-            flaggedExtensions={documentEditorExtensions.flagged}
-            aiHandler={{
-              menu: getAIMenu,
-            }}
-            onAssetChange={updateAssetsList}
-            extendedEditorProps={extendedEditorProps}
-            isFetchingFallbackBinary={isFetchingFallbackBinary}
-          />
+          <EditorMentionsProvider projectId={projectId}>
+            <CollaborativeDocumentEditorWithRef
+              editable={isContentEditable}
+              id={pageId}
+              fileHandler={config.fileHandler}
+              handleEditorReady={handleEditorReady}
+              ref={editorForwardRef}
+              titleRef={titleEditorRef}
+              containerClassName="h-full p-0 pb-64"
+              displayConfig={displayConfig}
+              getEditorMetaData={getEditorMetaData}
+              mentionHandler={{
+                searchCallback: async (query) => {
+                  const res = await fetchMentions(query);
+                  if (!res) throw new Error("Failed in fetching mentions");
+                  return res;
+                },
+                // oxlint-disable-next-line no-shadow
+                renderComponent: (props) => <EditorMentionsRoot {...props} />,
+                getMentionedEntityDetails: (id: string) => ({ display_name: getUserDetails(id)?.display_name ?? "" }),
+              }}
+              updatePageProperties={updatePageProperties}
+              realtimeConfig={realtimeConfig}
+              serverHandler={serverHandler}
+              user={userConfig}
+              disabledExtensions={documentEditorExtensions.disabled}
+              flaggedExtensions={documentEditorExtensions.flagged}
+              aiHandler={{
+                menu: getAIMenu,
+              }}
+              onAssetChange={updateAssetsList}
+              extendedEditorProps={extendedEditorProps}
+              isFetchingFallbackBinary={isFetchingFallbackBinary}
+            />
+          </EditorMentionsProvider>
         </div>
       </div>
     </Row>

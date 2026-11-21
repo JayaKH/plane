@@ -10,6 +10,8 @@ import { DocumentEditorWithRef } from "@plane/editor";
 import type { IEditorPropsExtended, EditorRefApi, IDocumentEditorProps, TFileHandler } from "@plane/editor";
 import type { MakeOptional, TSearchEntityRequestPayload, TSearchResponse } from "@plane/types";
 import { cn } from "@plane/utils";
+// components
+import { EditorMentionsProvider } from "@/components/editor/embeds/mentions/provider";
 // hooks
 import { useEditorConfig, useEditorMention } from "@/hooks/editor";
 import { useMember } from "@/hooks/store/use-member";
@@ -73,32 +75,34 @@ export const DocumentEditor = forwardRef(function DocumentEditor(
   const { getEditorFileHandlers } = useEditorConfig();
 
   return (
-    <DocumentEditorWithRef
-      ref={ref}
-      disabledExtensions={[...documentEditorExtensions.disabled, ...(additionalDisabledExtensions ?? [])]}
-      editable={editable}
-      flaggedExtensions={documentEditorExtensions.flagged}
-      fileHandler={getEditorFileHandlers({
-        projectId,
-        uploadFile: editable ? props.uploadFile : async () => "",
-        duplicateFile: editable ? props.duplicateFile : async () => "",
-        workspaceId,
-        workspaceSlug,
-      })}
-      getEditorMetaData={getEditorMetaData}
-      mentionHandler={{
-        searchCallback: async (query) => {
-          const res = await fetchMentions(query);
-          if (!res) throw new Error("Failed in fetching mentions");
-          return res;
-        },
-        renderComponent: EditorMentionsRoot,
-        getMentionedEntityDetails: (id: string) => ({ display_name: getUserDetails(id)?.display_name ?? "" }),
-      }}
-      extendedEditorProps={extendedEditorProps}
-      {...rest}
-      containerClassName={cn("relative pb-3 pl-3", containerClassName)}
-    />
+    <EditorMentionsProvider projectId={projectId}>
+      <DocumentEditorWithRef
+        ref={ref}
+        disabledExtensions={[...documentEditorExtensions.disabled, ...(additionalDisabledExtensions ?? [])]}
+        editable={editable}
+        flaggedExtensions={documentEditorExtensions.flagged}
+        fileHandler={getEditorFileHandlers({
+          projectId,
+          uploadFile: editable ? props.uploadFile : async () => "",
+          duplicateFile: editable ? props.duplicateFile : async () => "",
+          workspaceId,
+          workspaceSlug,
+        })}
+        getEditorMetaData={getEditorMetaData}
+        mentionHandler={{
+          searchCallback: async (query) => {
+            const res = await fetchMentions(query);
+            if (!res) throw new Error("Failed in fetching mentions");
+            return res;
+          },
+          renderComponent: EditorMentionsRoot,
+          getMentionedEntityDetails: (id: string) => ({ display_name: getUserDetails(id)?.display_name ?? "" }),
+        }}
+        extendedEditorProps={extendedEditorProps}
+        {...rest}
+        containerClassName={cn("relative pb-3 pl-3", containerClassName)}
+      />
+    </EditorMentionsProvider>
   );
 });
 

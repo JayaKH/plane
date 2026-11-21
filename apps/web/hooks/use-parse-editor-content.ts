@@ -12,6 +12,7 @@ import { getBase64Image, getEditorAssetSrc } from "@plane/utils";
 import type { TCustomComponentsMetaData } from "@plane/utils";
 // hooks
 import { useMember } from "@/hooks/store/use-member";
+import { EPageStoreType, usePageStore } from "@/hooks/store/use-page-store";
 // plane web hooks
 import { useAdditionalEditorMention } from "@/hooks/use-additional-editor-mention";
 
@@ -24,6 +25,7 @@ export const useParseEditorContent = (args: TArgs) => {
   const { projectId, workspaceSlug } = args;
   // store hooks
   const { getUserDetails } = useMember();
+  const { getPageById } = usePageStore(EPageStoreType.PROJECT);
   // parse additional content
   const { parseAdditionalEditorContent } = useAdditionalEditorMention({
     enableAdvancedMentions: true,
@@ -49,11 +51,16 @@ export const useParseEditorContent = (args: TArgs) => {
         span.setAttribute("data-node-type", "mention-block");
         // get the user id from the component
         const id = component.getAttribute("entity_identifier") || "";
-        const entityType = (component.getAttribute("entity_name") || "user_mention") as TSearchEntities;
-        let textContent = "user";
+        const entityType = (component.getAttribute("entity_name") || "user_mention" || "page") as TSearchEntities;
+        let textContent = "";
         if (entityType === "user_mention") {
           const userDetails = getUserDetails(id);
+          if (!userDetails) return "user";
           textContent = userDetails?.display_name ?? "";
+        } else if (entityType === "page") {
+          const pageDetails = getPageById(id);
+          if (!pageDetails) return "page";
+          textContent = pageDetails?.name ?? "Unknown page";
         } else {
           const mentionDetails = parseAdditionalEditorContent({
             id,
@@ -160,7 +167,7 @@ export const useParseEditorContent = (args: TArgs) => {
       serializedDoc = serializedDoc.replace(/background-color: null/g, "").replace(/color: null/g, "");
       return serializedDoc;
     },
-    [getUserDetails, parseAdditionalEditorContent]
+    [getUserDetails, getPageById, parseAdditionalEditorContent]
   );
 
   /**
@@ -183,6 +190,10 @@ export const useParseEditorContent = (args: TArgs) => {
           const userDetails = getUserDetails(id);
           if (!userDetails) return "";
           return `[${userDetails.display_name}](${originUrl}/${workspaceSlug}/profile/${id})`;
+        } else if (entityType === "page" && projectId) {
+          const pageDetails = getPageById(id);
+          if (!pageDetails) return "";
+          return `[${pageDetails.name ?? "Unknown page"}](${originUrl}/${workspaceSlug}/projects/${projectId}/pages/${id}`;
         } else {
           const mentionDetails = parseAdditionalEditorContent({
             id,
@@ -214,7 +225,7 @@ export const useParseEditorContent = (args: TArgs) => {
       parsedMarkdownContent = parsedMarkdownContent.replace(issueEmbedRegex, "");
       return parsedMarkdownContent;
     },
-    [getUserDetails, parseAdditionalEditorContent, workspaceSlug]
+    [getUserDetails, getPageById, parseAdditionalEditorContent, workspaceSlug]
   );
 
   const getEditorMetaData = useCallback(
@@ -243,22 +254,38 @@ export const useParseEditorContent = (args: TArgs) => {
           }
         }
       });
-      // process user mentions
+      // process user mentions and page mentions
       const userMentions: TCustomComponentsMetaData["user_mentions"] = [];
+      const pageMentions: TCustomComponentsMetaData["page_mentions"] = [];
       const mentionComponents = doc.querySelectorAll("mention-component");
       mentionComponents.forEach((element) => {
         const id = element.getAttribute("entity_identifier");
         if (id) {
-          const userDetails = getUserDetails(id);
-          const originUrl = typeof window !== "undefined" && (window.location.origin ?? "");
-          const path = `${workspaceSlug}/profile/${id}`;
-          const url = `${originUrl}/${path}`;
-          if (userDetails) {
-            userMentions.push({
-              id,
-              display_name: userDetails.display_name,
-              url,
-            });
+          const entityType = element.getAttribute("entity_name");
+          if (entityType === "user_mention") {
+            const userDetails = getUserDetails(id);
+            const originUrl = typeof window !== "undefined" && (window.location.origin ?? "");
+            const path = `${workspaceSlug}/profile/${id}`;
+            const url = `${originUrl}/${path}`;
+            if (userDetails) {
+              userMentions.push({
+                id,
+                display_name: userDetails.display_name,
+                url,
+              });
+            }
+          } else if (entityType === "page" && projectId) {
+            const pageDetails = getPageById(id);
+            const originUrl = typeof window !== "undefined" && (window.location.origin ?? "");
+            const path = `${workspaceSlug}/projects/${projectId}/pages/${id}`;
+            const url = `${originUrl}/${path}`;
+            if (pageDetails) {
+              pageMentions.push({
+                id,
+                name: pageDetails.name ?? `Unknown page`,
+                url,
+              });
+            }
           }
         }
       });
@@ -266,9 +293,10 @@ export const useParseEditorContent = (args: TArgs) => {
       return {
         file_assets: filesMetaData,
         user_mentions: userMentions,
+        page_mentions: pageMentions,
       };
     },
-    [getUserDetails, projectId, workspaceSlug]
+    [getUserDetails, getPageById, projectId, workspaceSlug]
   );
 
   return {

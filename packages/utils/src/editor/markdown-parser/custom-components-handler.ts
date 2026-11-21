@@ -45,6 +45,12 @@ export const parseCustomComponents = (args: TArgs): Record<string, Handle> => {
         if (!userDetails) return createTextNode("");
         url = userDetails.url || "";
         tag = `@${userDetails.display_name || "Unknown user"}`;
+      } else if (mentionType === "page") {
+        const pageId = String(properties.entity_identifier);
+        const pageDetails = metaData.page_mentions.find((page) => page.id === pageId);
+        if (!pageDetails) return createTextNode("");
+        url = pageDetails.url || "";
+        tag = `@${pageDetails.name || "Unknown page"}`;
       }
 
       return createTextNode(`[${tag}](${url}) `);

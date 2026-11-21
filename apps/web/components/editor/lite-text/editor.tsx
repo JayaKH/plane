@@ -15,6 +15,7 @@ import type { MakeOptional } from "@plane/types";
 import { cn, isCommentEmpty } from "@plane/utils";
 // components
 import { EditorMentionsRoot } from "@/components/editor/embeds/mentions";
+import { EditorMentionsProvider } from "@/components/editor/embeds/mentions/provider";
 import { IssueCommentToolbar } from "@/components/editor/lite-text/toolbar";
 // hooks
 import { useEditorConfig, useEditorMention } from "@/hooks/editor";
@@ -102,6 +103,7 @@ export const LiteTextEditor = React.forwardRef(function LiteTextEditor(
   });
   // use editor mention
   const { fetchMentions } = useEditorMention({
+    enableAdvancedMentions: true,
     searchEntity: async (payload) =>
       await workspaceService.searchEntity(workspaceSlug, {
         ...payload,
@@ -133,44 +135,46 @@ export const LiteTextEditor = React.forwardRef(function LiteTextEditor(
       <div className={cn(isLiteVariant && editable ? "flex items-end gap-1.5" : "")}>
         {/* Main Editor - always rendered once */}
         <div className={cn(isLiteVariant && editable ? "flex min-h-6 min-w-0 flex-1 items-center" : "")}>
-          <LiteTextEditorWithRef
-            ref={ref}
-            disabledExtensions={[...liteTextEditorExtensions.disabled, ...additionalDisabledExtensions]}
-            editable={editable}
-            flaggedExtensions={liteTextEditorExtensions.flagged}
-            fileHandler={getEditorFileHandlers({
-              projectId,
-              uploadFile: editable ? props.uploadFile : async () => "",
-              duplicateFile: editable ? props.duplicateFile : async () => "",
-              workspaceId,
-              workspaceSlug,
-            })}
-            getEditorMetaData={getEditorMetaData}
-            handleEditorReady={(ready) => {
-              if (ready) {
-                setEditorRef(isMutableRefObject<EditorRefApi>(ref) ? ref.current : null);
-              }
-            }}
-            mentionHandler={{
-              searchCallback: async (query) => {
-                const res = await fetchMentions(query);
-                if (!res) throw new Error("Failed in fetching mentions");
-                return res;
-              },
-              renderComponent: EditorMentionsRoot,
-              getMentionedEntityDetails: (id) => ({
-                display_name: getUserDetails(id)?.display_name ?? "",
-              }),
-            }}
-            placeholder={placeholder}
-            showPlaceholderOnEmpty={showPlaceholderOnEmpty}
-            containerClassName={cn(containerClassName, "relative", {
-              "p-2": !editable,
-            })}
-            extendedEditorProps={{}}
-            editorClassName={editorClassName}
-            {...rest}
-          />
+          <EditorMentionsProvider projectId={projectId}>
+            <LiteTextEditorWithRef
+              ref={ref}
+              disabledExtensions={[...liteTextEditorExtensions.disabled, ...additionalDisabledExtensions]}
+              editable={editable}
+              flaggedExtensions={liteTextEditorExtensions.flagged}
+              fileHandler={getEditorFileHandlers({
+                projectId,
+                uploadFile: editable ? props.uploadFile : async () => "",
+                duplicateFile: editable ? props.duplicateFile : async () => "",
+                workspaceId,
+                workspaceSlug,
+              })}
+              getEditorMetaData={getEditorMetaData}
+              handleEditorReady={(ready) => {
+                if (ready) {
+                  setEditorRef(isMutableRefObject<EditorRefApi>(ref) ? ref.current : null);
+                }
+              }}
+              mentionHandler={{
+                searchCallback: async (query) => {
+                  const res = await fetchMentions(query);
+                  if (!res) throw new Error("Failed in fetching mentions");
+                  return res;
+                },
+                renderComponent: EditorMentionsRoot,
+                getMentionedEntityDetails: (id) => ({
+                  display_name: getUserDetails(id)?.display_name ?? "",
+                }),
+              }}
+              placeholder={placeholder}
+              showPlaceholderOnEmpty={showPlaceholderOnEmpty}
+              containerClassName={cn(containerClassName, "relative", {
+                "p-2": !editable,
+              })}
+              extendedEditorProps={{}}
+              editorClassName={editorClassName}
+              {...rest}
+            />
+          </EditorMentionsProvider>
         </div>
 
         {/* Lite Toolbar - conditionally rendered */}
