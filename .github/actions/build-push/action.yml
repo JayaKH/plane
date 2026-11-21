@@ -177,8 +177,8 @@ runs:
         platforms: ${{ inputs.buildx-platforms }}
         tags: ${{ steps.compute_tags.outputs.tags }}
         labels: ${{ steps.compute_tags.outputs.labels }}
-        cache-from: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }}
-        cache-to: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }},mode=max
+        cache-from: type=registry,ref=${{ steps.prep.outputs.full_image }}:buildcache${{ inputs.cache-scope-suffix }}
+        cache-to: type=registry,ref=${{ steps.prep.outputs.full_image }}:buildcache${{ inputs.cache-scope-suffix }},mode=max
         push: true
         build-args: ${{ inputs.build-args }}
 
@@ -194,9 +194,9 @@ runs:
         context: ${{ inputs.build-context }}
         file: ${{ inputs.dockerfile-path }}
         platforms: ${{ inputs.buildx-platforms }}
-        outputs: type=image,name=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }},push-by-digest=true,name-canonical=true,push=true
-        cache-from: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }}
-        cache-to: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }},mode=max
+        outputs: type=image,name=${{ steps.prep.outputs.full_image }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=registry,ref=${{ steps.prep.outputs.full_image }}:buildcache${{ inputs.cache-scope-suffix }}
+        cache-to: type=registry,ref=${{ steps.prep.outputs.full_image }}:buildcache${{ inputs.cache-scope-suffix }},mode=max
         provenance: false
         push: false
         build-args: ${{ inputs.build-args }}
