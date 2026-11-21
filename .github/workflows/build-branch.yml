@@ -183,10 +183,10 @@ jobs:
       - name: Admin Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_admin }}
@@ -217,6 +217,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_admin }}
@@ -239,10 +240,10 @@ jobs:
       - name: Web Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_web }}
@@ -273,6 +274,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_web }}
@@ -295,10 +297,10 @@ jobs:
       - name: Space Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_space }}
@@ -329,6 +331,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_space }}
@@ -351,10 +354,10 @@ jobs:
       - name: Live Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_live }}
@@ -385,6 +388,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_live }}
@@ -407,10 +411,10 @@ jobs:
       - name: Backend Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_backend }}
@@ -441,6 +445,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_backend }}
@@ -463,10 +468,10 @@ jobs:
       - name: Proxy Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_proxy }}
@@ -497,6 +502,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_proxy }}
@@ -569,10 +575,10 @@ jobs:
       - name: AIO Build and Push
         uses: ./.github/actions/build-push
         with:
-          registry: ${{ needs.branch_build_setup.outputs.registry }}
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_aio }}
@@ -607,6 +613,7 @@ jobs:
           build-release: ${{ needs.branch_build_setup.outputs.build_release }}
           build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
           release-version: ${{ needs.branch_build_setup.outputs.release_version }}
+          registry: ${{ needs.branch_build_setup.outputs.registry }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
           image-owner: ${{ needs.branch_build_setup.outputs.registry_owner }}
           image-name: ${{ needs.branch_build_setup.outputs.ghcr_img_aio }}

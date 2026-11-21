@@ -1,5 +1,5 @@
-name: "Build and Push Docker Image"
-description: "Reusable action for building and pushing Docker images"
+name: "Build and Push Image"
+description: "Reusable action for building and pushing images"
 
 inputs:
   registry:
@@ -15,13 +15,13 @@ inputs:
     required: false
     default: ""
 
-  # Docker Image Options
+  # Image Options
   image-owner:
     description: "Registry owner / organization (lowercase)"
     required: false
     default: ""
   image-name:
-    description: "Name of the Docker image (e.g. plane-frontend)"
+    description: "Name of the image (e.g. plane-frontend)"
     required: true
   build-context:
     description: "The build context"
@@ -144,7 +144,7 @@ runs:
           type=raw,value=${{ inputs.release-version }},enable=${{ inputs.release-version != '' }}
           type=raw,value=latest,enable=${{ inputs.build-release == 'true' && inputs.build-prerelease != 'true' }}
 
-    - name: Login to GHCR
+    - name: Login to Registry
       uses: docker/login-action@v4
       with:
         registry: ${{ inputs.registry }}
@@ -168,7 +168,7 @@ runs:
         name: ${{ inputs.additional-assets }}
         path: ${{ inputs.additional-assets-dir }}
 
-    - name: Build and push
+    - name: Build and Push Image
       if: ${{ inputs.push-by-digest != 'true' }}
       uses: docker/build-push-action@v7
       with:
@@ -186,7 +186,7 @@ runs:
     # manifest and the registry hands back its digest, which merge-manifest
     # later collects alongside the other architectures' digests. provenance is
     # pinned off so each job pushes a plain manifest rather than an index.
-    - name: Build by digest
+    - name: Build Image by Digest
       id: build_by_digest
       if: ${{ inputs.push-by-digest == 'true' }}
       uses: docker/build-push-action@v7.0.0
