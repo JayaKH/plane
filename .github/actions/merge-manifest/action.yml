@@ -1,0 +1,199 @@
+name: "Merge Multi-Arch Manifest"
+description: "Collects per-architecture digests pushed by build-push (push-by-digest mode) and publishes them as a single tagged multi-arch manifest"
+
+inputs:
+  registry:
+    description: "Container registry host"
+    required: false
+    default: "ghcr.io"
+  registry-username:
+    description: "Username for authenticating to registry"
+    required: false
+    default: ""
+  registry-token:
+    description: "Token for authenticating to registry"
+    required: false
+    default: ""
+
+  # Docker Image Options
+  image-owner:
+    description: "Registry owner / organization (lowercase)"
+    required: false
+    default: ""
+  image-name:
+    description: "Name of the Docker image (e.g. plane-frontend)"
+    required: true
+
+  # Manifest Options
+  digest-artifact-pattern:
+    description: "Pattern to match digest artifacts (e.g. digest-admin-*)"
+    required: true
+  expected-platforms:
+    description: "Comma-separated list of platforms expected in the merged manifest (e.g. linux/amd64,linux/arm64)"
+    required: false
+    default: ""
+
+  # Release Build Options
+  build-release:
+    description: "Whether this is a release build"
+    required: false
+    default: "false"
+  build-prerelease:
+    description: "Whether this is a prerelease"
+    required: false
+    default: "false"
+  release-version:
+    description: "Release version tag (e.g. v1.4.3)"
+    required: false
+    default: "latest"
+
+outputs:
+  tags:
+    description: "Generated image tags"
+    value: ${{ steps.compute_tags.outputs.tags }}
+  image:
+    description: "Full image reference"
+    value: ${{ steps.prep.outputs.full_image }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare Image Reference
+      id: prep
+      shell: bash
+      run: |
+        REGISTRY="${{ inputs.registry }}"
+        OWNER="${{ inputs.image-owner }}"
+        if [ -z "$OWNER" ]; then
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        else
+          OWNER=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+        fi
+
+        IMG="${{ inputs.image-name }}"
+        if [[ "$IMG" == *"/"* ]]; then
+          if [[ "$IMG" == "$REGISTRY/"* ]]; then
+            FULL_IMAGE="$IMG"
+          else
+            FULL_IMAGE="${REGISTRY}/${IMG}"
+          fi
+        else
+          FULL_IMAGE="${REGISTRY}/${OWNER}/${IMG}"
+        fi
+        echo "full_image=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+        echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+    - name: Login to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.registry-username || github.actor }}
+        password: ${{ inputs.registry-token || github.token }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Download digests
+      uses: actions/download-artifact@v8
+      with:
+        pattern: ${{ inputs.digest-artifact-pattern }}
+        merge-multiple: true
+        path: /tmp/digests
+
+    - name: Set Image Tag
+      id: compute_tags
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ steps.prep.outputs.full_image }}
+        tags: |
+          type=raw,value=${{ inputs.release-version }},enable=${{ inputs.release-version != '' }}
+          type=raw,value=latest,enable=${{ inputs.build-release == 'true' && inputs.build-prerelease != 'true' }}
+
+    - name: Create manifest list and push
+      shell: bash
+      env:
+        FULL_IMAGE: ${{ steps.prep.outputs.full_image }}
+        TAGS: ${{ steps.compute_tags.outputs.tags }}
+        DIGEST_PATTERN: ${{ inputs.digest-artifact-pattern }}
+      run: |
+        DIGEST_DIR="/tmp/digests"
+
+        if [ ! -d "$DIGEST_DIR" ]; then
+          echo "::error::Digests directory $DIGEST_DIR not found!"
+          exit 1
+        fi
+
+        DIGEST_LIST=()
+        for f in $(find "$DIGEST_DIR" -type f); do
+          CONTENT=$(tr -d ' \n\r' < "$f")
+          if [[ "$CONTENT" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            DIGEST_LIST+=("${FULL_IMAGE}@${CONTENT}")
+          elif [[ "$CONTENT" =~ ^[a-f0-9]{64}$ ]]; then
+            DIGEST_LIST+=("${FULL_IMAGE}@sha256:${CONTENT}")
+          else
+            BN=$(basename "$f")
+            if [[ "$BN" =~ ^[a-f0-9]{64}$ ]]; then
+              DIGEST_LIST+=("${FULL_IMAGE}@sha256:${BN}")
+            elif [[ "$BN" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              DIGEST_LIST+=("${FULL_IMAGE}@${BN}")
+            fi
+          fi
+        done
+
+        if [ ${#DIGEST_LIST[@]} -eq 0 ]; then
+          echo "::error::No valid image digests found in $DIGEST_DIR for pattern $DIGEST_PATTERN"
+          exit 1
+        fi
+
+        readarray -t UNIQUE_DIGESTS < <(printf '%s\n' "${DIGEST_LIST[@]}" | sort -u | grep -v '^$')
+
+        echo "Discovered digests for ${FULL_IMAGE}:"
+        printf '  %s\n' "${UNIQUE_DIGESTS[@]}"
+
+        TAG_ARGS=()
+        while IFS= read -r tag; do
+          tag=$(echo "$tag" | xargs)
+          [ -z "$tag" ] && continue
+          TAG_ARGS+=("-t" "$tag")
+        done <<< "$TAGS"
+
+        if [ ${#TAG_ARGS[@]} -eq 0 ]; then
+          echo "::error::No tags generated to apply to manifest list!"
+          exit 1
+        fi
+
+        echo "Creating manifest list with tags:"
+        printf '  %s\n' "${TAG_ARGS[@]}"
+
+        docker buildx imagetools create "${TAG_ARGS[@]}" "${UNIQUE_DIGESTS[@]}"
+
+    - name: Verify merged manifest platforms
+      shell: bash
+      env:
+        TAGS: ${{ steps.compute_tags.outputs.tags }}
+        EXPECTED_PLATFORMS: ${{ inputs.expected-platforms }}
+      run: |
+        FIRST_TAG=$(echo "$TAGS" | grep -v '^$' | head -n 1 | xargs)
+        if [ -z "$FIRST_TAG" ]; then
+          echo "::error::No tag available to inspect!"
+          exit 1
+        fi
+
+        echo "Inspecting manifest for $FIRST_TAG..."
+        INSPECT_OUTPUT=$(docker buildx imagetools inspect "$FIRST_TAG")
+        echo "$INSPECT_OUTPUT"
+
+        if [ -n "$EXPECTED_PLATFORMS" ]; then
+          echo "Verifying expected platforms: $EXPECTED_PLATFORMS"
+          IFS=',' read -ra PLAT_LIST <<< "$EXPECTED_PLATFORMS"
+          for plat in "${PLAT_LIST[@]}"; do
+            plat=$(echo "$plat" | xargs)
+            if [ -n "$plat" ]; then
+              if ! echo "$INSPECT_OUTPUT" | grep -F -q "$plat"; then
+                echo "::error::Expected platform '$plat' not found in merged manifest for $FIRST_TAG!"
+                exit 1
+              fi
+              echo "Verified platform: $plat is present."
+            fi
+          done
+        fi

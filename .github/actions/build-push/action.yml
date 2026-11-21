@@ -1,0 +1,224 @@
+name: "Build and Push Docker Image"
+description: "Reusable action for building and pushing Docker images"
+
+inputs:
+  registry:
+    description: "Container registry host"
+    required: false
+    default: "ghcr.io"
+  registry-username:
+    description: "Username for authenticating to registry"
+    required: false
+    default: ""
+  registry-token:
+    description: "Token for authenticating to registry"
+    required: false
+    default: ""
+
+  # Docker Image Options
+  image-owner:
+    description: "Registry owner / organization (lowercase)"
+    required: false
+    default: ""
+  image-name:
+    description: "Name of the Docker image (e.g. plane-frontend)"
+    required: true
+  build-context:
+    description: "The build context"
+    required: true
+    default: "."
+  dockerfile-path:
+    description: "The path to the Dockerfile"
+    required: true
+    default: "Dockerfile"
+  build-args:
+    description: "The build arguments"
+    required: false
+    default: ""
+
+  # Buildx Options
+  buildx-driver:
+    description: "Buildx driver"
+    required: true
+    default: "docker-container"
+  buildx-version:
+    description: "Buildx version"
+    required: true
+    default: "latest"
+  buildx-platforms:
+    description: "Buildx platforms"
+    required: true
+    default: "linux/amd64"
+  buildx-endpoint:
+    description: "Buildx endpoint"
+    required: true
+    default: "default"
+
+  # Split-architecture (push-by-digest) options.
+  #
+  # These exist so one image can be built by several jobs in parallel -- one per
+  # architecture, each on a runner native to that architecture -- and merged
+  # afterwards by the merge-manifest action. Defaults reproduce the single-job,
+  # tagged-push behaviour exactly, so existing callers need no changes.
+  push-by-digest:
+    description: "Push an untagged manifest and return its digest instead of pushing tags. Requires exactly one platform in buildx-platforms; the merge-manifest action applies the tags afterwards."
+    required: false
+    default: "false"
+  cache-scope-suffix:
+    description: "Appended to the registry cache ref (<image>:buildcache<suffix>). Set this per-architecture when building one image from several jobs, otherwise the jobs overwrite each other's cache."
+    required: false
+    default: ""
+  digest-artifact-name:
+    description: "When set (with push-by-digest), the resulting digest is uploaded under this artifact name for the merge job to collect. Must be unique per image and architecture within a workflow run."
+    required: false
+    default: ""
+
+  # Release Build Options
+  build-release:
+    description: "Whether this is a release build"
+    required: false
+    default: "false"
+  build-prerelease:
+    description: "Whether this is a prerelease"
+    required: false
+    default: "false"
+  release-version:
+    description: "Release version tag (e.g. v1.4.3)"
+    required: false
+    default: "latest"
+
+  additional-assets:
+    description: "Additional assets to download"
+    required: false
+    default: ""
+  additional-assets-dir:
+    description: "Additional assets directory"
+    required: false
+    default: ""
+
+outputs:
+  digest:
+    description: "Digest of the pushed manifest. Only set when push-by-digest is true."
+    value: ${{ steps.build_by_digest.outputs.digest }}
+  tags:
+    description: "Generated image tags"
+    value: ${{ steps.compute_tags.outputs.tags }}
+  image-ref:
+    description: "Full image reference (without tag)"
+    value: ${{ steps.prep.outputs.full_image }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare Image Reference
+      id: prep
+      shell: bash
+      run: |
+        REGISTRY="${{ inputs.registry }}"
+        OWNER="${{ inputs.image-owner }}"
+        if [ -z "$OWNER" ]; then
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        else
+          OWNER=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+        fi
+
+        IMG="${{ inputs.image-name }}"
+        if [[ "$IMG" == *"/"* ]]; then
+          if [[ "$IMG" == "$REGISTRY/"* ]]; then
+            FULL_IMAGE="$IMG"
+          else
+            FULL_IMAGE="${REGISTRY}/${IMG}"
+          fi
+        else
+          FULL_IMAGE="${REGISTRY}/${OWNER}/${IMG}"
+        fi
+        echo "full_image=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+        echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+    - name: Set Image Tag
+      id: compute_tags
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ steps.prep.outputs.full_image }}
+        tags: |
+          type=raw,value=${{ inputs.release-version }},enable=${{ inputs.release-version != '' }}
+          type=raw,value=latest,enable=${{ inputs.build-release == 'true' && inputs.build-prerelease != 'true' }}
+
+    - name: Login to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.registry-username || github.actor }}
+        password: ${{ inputs.registry-token || github.token }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver: ${{ inputs.buildx-driver }}
+        version: ${{ inputs.buildx-version }}
+        endpoint: ${{ inputs.buildx-endpoint }}
+
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Download Additional Assets
+      if: ${{ inputs.additional-assets != '' && inputs.additional-assets-dir != '' }}
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.additional-assets }}
+        path: ${{ inputs.additional-assets-dir }}
+
+    - name: Build and push
+      if: ${{ inputs.push-by-digest != 'true' }}
+      uses: docker/build-push-action@v7
+      with:
+        context: ${{ inputs.build-context }}
+        file: ${{ inputs.dockerfile-path }}
+        platforms: ${{ inputs.buildx-platforms }}
+        tags: ${{ steps.compute_tags.outputs.tags }}
+        labels: ${{ steps.compute_tags.outputs.labels }}
+        cache-from: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }}
+        cache-to: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }},mode=max
+        push: true
+        build-args: ${{ inputs.build-args }}
+
+    # Digest mode. No tag is written here at all: the image exporter pushes the
+    # manifest and the registry hands back its digest, which merge-manifest
+    # later collects alongside the other architectures' digests. provenance is
+    # pinned off so each job pushes a plain manifest rather than an index.
+    - name: Build by digest
+      id: build_by_digest
+      if: ${{ inputs.push-by-digest == 'true' }}
+      uses: docker/build-push-action@v7.0.0
+      with:
+        context: ${{ inputs.build-context }}
+        file: ${{ inputs.dockerfile-path }}
+        platforms: ${{ inputs.buildx-platforms }}
+        outputs: type=image,name=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }}
+        cache-to: type=registry,ref=${{ steps.prep.outputs.owner }}/${{ inputs.image-name }}:buildcache${{ inputs.cache-scope-suffix }},mode=max
+        provenance: false
+        push: false
+        build-args: ${{ inputs.build-args }}
+
+    # The digest travels to the merge job as an artifact rather than a job
+    # output: every leg of a matrix writes the same job-output key, so only the
+    # last leg to finish would survive and the merge would quietly produce a
+    # single-platform manifest.
+    - name: Export digest
+      if: ${{ inputs.push-by-digest == 'true' && inputs.digest-artifact-name != '' }}
+      shell: bash
+      env:
+        DIGEST: ${{ steps.build_by_digest.outputs.digest }}
+      run: |
+        mkdir -p /tmp/digests
+        echo "$DIGEST" > "/tmp/digests/${DIGEST#sha256:}"
+
+    - name: Upload digest
+      if: ${{ inputs.push-by-digest == 'true' && inputs.digest-artifact-name != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.digest-artifact-name }}
+        path: /tmp/digests/*
+        retention-days: 1
+        if-no-files-found: error
