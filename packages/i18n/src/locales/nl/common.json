@@ -37,6 +37,7 @@
   "last_name": "Achternaam",
   "email": "E-mail",
   "display_name": "Weergavenaam",
+  "mobile_number": "Mobiel nummer",
   "role": "Rol",
   "timezone": "Tijdzone",
   "avatar": "Avatar",

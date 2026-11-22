@@ -37,6 +37,7 @@
   "last_name": "姓",
   "email": "メールアドレス",
   "display_name": "表示名",
+  "mobile_number": "モバイル番号",
   "role": "役割",
   "timezone": "タイムゾーン",
   "avatar": "アバター",

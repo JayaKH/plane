@@ -37,6 +37,7 @@
   "last_name": "Priezvisko",
   "email": "E-mail",
   "display_name": "Zobrazované meno",
+  "mobile_number": "Mobilné číslo",
   "role": "Rola",
   "timezone": "Časové pásmo",
   "avatar": "Profilový obrázok",

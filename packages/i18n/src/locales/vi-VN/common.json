@@ -37,6 +37,7 @@
   "last_name": "Họ",
   "email": "Email",
   "display_name": "Tên hiển thị",
+  "mobile_number": "Số điện thoại",
   "role": "Vai trò",
   "timezone": "Múi giờ",
   "avatar": "Ảnh đại diện",

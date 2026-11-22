@@ -30,7 +30,12 @@ import { handleCoverImageChange } from "@/helpers/cover-image.helper";
 import { useInstance } from "@/hooks/store/use-instance";
 import { useUser, useUserProfile } from "@/hooks/store/user";
 // utils
-import { validatePersonName, validateOptionalPersonName, validateDisplayName } from "@plane/utils";
+import {
+  validateDisplayName,
+  validateMobileNumber,
+  validateOptionalPersonName,
+  validatePersonName,
+} from "@plane/utils";
 
 type TUserProfileForm = {
   avatar_url: string;
@@ -41,6 +46,7 @@ type TUserProfileForm = {
   last_name: string;
   display_name: string;
   email: string;
+  mobile_number: string;
   role: string;
   language: string;
   user_timezone: string;
@@ -76,6 +82,7 @@ export const GeneralProfileSettingsForm = observer(function GeneralProfileSettin
       last_name: user.last_name || "",
       display_name: user.display_name || "",
       email: user.email || "",
+      mobile_number: user.mobile_number || "",
       role: profile.role || "Product / Project Manager",
       language: profile.language || "en",
       user_timezone: user.user_timezone || "Asia/Kolkata",
@@ -124,6 +131,7 @@ export const GeneralProfileSettingsForm = observer(function GeneralProfileSettin
       last_name: formData.last_name,
       avatar_url: formData.avatar_url,
       display_name: formData?.display_name,
+      mobile_number: formData.mobile_number || null,
     };
 
     try {
@@ -329,6 +337,8 @@ export const GeneralProfileSettingsForm = observer(function GeneralProfileSettin
                 />
               )}
             />
+          </div>
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Controller
                 control={control}
@@ -364,6 +374,28 @@ export const GeneralProfileSettingsForm = observer(function GeneralProfileSettin
                 </button>
               )}
             </div>
+            <Controller
+              control={control}
+              name="mobile_number"
+              rules={{ validate: validateMobileNumber }}
+              render={({ field: { value, onChange, ref } }) => (
+                <InputField
+                  size="lg"
+                  orientation="vertical"
+                  id="mobile_number"
+                  name="mobile_number"
+                  type="tel"
+                  label={t("mobile_number")}
+                  value={value}
+                  onChange={onChange}
+                  ref={ref}
+                  error={errors.mobile_number?.message}
+                  placeholder="Enter your mobile number"
+                  maxLength={20}
+                  autoComplete="tel"
+                />
+              )}
+            />
           </div>
           <div>
             <Button

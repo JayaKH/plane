@@ -37,6 +37,7 @@
   "last_name": "姓",
   "email": "邮箱",
   "display_name": "显示名称",
+  "mobile_number": "手机号码",
   "role": "角色",
   "timezone": "时区",
   "avatar": "头像",

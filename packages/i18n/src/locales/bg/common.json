@@ -37,6 +37,7 @@
   "last_name": "Фамилия",
   "email": "Имейл",
   "display_name": "Показвано име",
+  "mobile_number": "Мобилен номер",
   "role": "Роля",
   "timezone": "Часова зона",
   "avatar": "Аватар",

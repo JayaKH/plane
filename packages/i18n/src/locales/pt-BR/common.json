@@ -37,6 +37,7 @@
   "last_name": "Sobrenome",
   "email": "E-mail",
   "display_name": "Nome de exibição",
+  "mobile_number": "Número de celular",
   "role": "Cargo",
   "timezone": "Fuso horário",
   "avatar": "Avatar",
