@@ -24,6 +24,7 @@ from plane.db.models import (
     UserNotificationPreference,
     ProjectMember,
 )
+from plane.bgtasks.whatsapp_notification_task import send_whatsapp_notification
 from django.db.models import Subquery
 
 # Third Party imports
@@ -519,6 +520,13 @@ def notifications(
                             )
                         bulk_notifications.append(notification)
 
+                    # Send WhatsApp notification for comment mention
+                    send_whatsapp_notification.delay(
+                        issue_id=str(issue_id),
+                        receiver_id=str(mention_id),
+                        message=f"_{actor.display_name}_ has mentioned you in a comment in issue *{issue.name}*",
+                    )
+
             for mention_id in new_mentions:
                 if mention_id != actor_id:
                     preference = UserNotificationPreference.objects.get(user_id=mention_id)
@@ -657,6 +665,13 @@ def notifications(
                                     )
                                 )
                             bulk_notifications.append(notification)
+
+                    # Send WhatsApp notification for description mention when issue was created
+                    send_whatsapp_notification.delay(
+                        issue_id=str(issue_id),
+                        receiver_id=str(mention_id),
+                        message=f"You have been mentioned in the issue *{issue.name}*",
+                    )
 
             # save new mentions for the particular issue and remove the mentions that has been deleted from the description # noqa: E501
             update_mentions_for_issue(
