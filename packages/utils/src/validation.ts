@@ -55,9 +55,54 @@ export const HAS_ALPHANUMERIC_REGEX = /[\p{L}\p{N}]/u;
  */
 export const SLUG_REGEX = /^[\p{L}\p{N}_-]+$/u;
 
+/**
+ * Mobile Number Pattern (for user mobile_number / phone numbers)
+ * Allows: optional leading "+", digits, spaces, dashes and parentheses
+ * Use case: International mobile numbers like "+91 98765 43210" or "9876543210"
+ * Blocks: Letters, symbols and other special characters
+ */
+export const MOBILE_NUMBER_REGEX = /^\+?[0-9][0-9\s-]{6,19}$/u;
+
 // =============================================================================
 // VALIDATION FUNCTIONS
 // =============================================================================
+
+/**
+ * @description Validates an optional mobile number.
+ * Returns true when the value is empty or omitted, otherwise validates mobile number constraints.
+ * @param {string} [mobileNumber] - Mobile number to validate
+ * @returns {boolean | string} true if valid or empty, error message if invalid
+ * @example
+ * validateMobileNumber("") // returns true
+ * validateMobileNumber(undefined) // returns true
+ * validateMobileNumber("+91 98765 43210") // returns true
+ * validateMobileNumber("+0 98765 4321") // returns error message
+ */
+export const validateMobileNumber = (mobileNumber?: string): boolean | string => {
+  if (!mobileNumber || mobileNumber.trim() === "") {
+    return true; // mobile number is optional, so empty value is allowed
+  }
+
+  const minDigits = 7;
+  const maxDigits = 15;
+
+  const trimmedValue = mobileNumber.trim();
+  const digits = trimmedValue.replace(/\D/g, "");
+
+  if (!MOBILE_NUMBER_REGEX.test(trimmedValue)) {
+    return "Mobile number can only contain digits, spaces, dashes and parentheses";
+  }
+
+  if (digits.startsWith("0")) {
+    return "Enter your phone number with your country code as a prefix (e.g., +1 or 62)";
+  }
+
+  if (digits.length < minDigits || digits.length > maxDigits) {
+    return "Mobile number must contain between 7 and 15 digits";
+  }
+
+  return true;
+};
 
 /**
  * @description Validates person names (first name, last name)

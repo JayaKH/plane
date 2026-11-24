@@ -37,6 +37,7 @@
   "last_name": "Nama belakang",
   "email": "Email",
   "display_name": "Nama tampilan",
+  "mobile_number": "Nomor handphone",
   "role": "Peran",
   "timezone": "Zona waktu",
   "avatar": "Avatar",

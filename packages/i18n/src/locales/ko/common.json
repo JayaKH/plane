@@ -37,6 +37,7 @@
   "last_name": "성",
   "email": "이메일",
   "display_name": "표시 이름",
+  "mobile_number": "휴대폰 번호",
   "role": "역할",
   "timezone": "시간대",
   "avatar": "아바타",

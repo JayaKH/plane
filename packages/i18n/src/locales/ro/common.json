@@ -37,6 +37,7 @@
   "last_name": "Nume de familie",
   "email": "Email",
   "display_name": "Nume afișat",
+  "mobile_number": "Număr de mobil",
   "role": "Rol",
   "timezone": "Fus orar",
   "avatar": "Imagine de profil",

@@ -37,6 +37,7 @@
   "last_name": "Last name",
   "email": "Email",
   "display_name": "Display name",
+  "mobile_number": "Mobile number",
   "role": "Role",
   "timezone": "Timezone",
   "avatar": "Avatar",

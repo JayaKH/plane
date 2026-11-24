@@ -37,6 +37,7 @@
   "last_name": "Soyad",
   "email": "E-posta",
   "display_name": "Görünen ad",
+  "mobile_number": "Mobil numarası",
   "role": "Rol",
   "timezone": "Saat dilimi",
   "avatar": "Profil resmi",

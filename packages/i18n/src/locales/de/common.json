@@ -37,6 +37,7 @@
   "last_name": "Nachname",
   "email": "E-Mail",
   "display_name": "Anzeigename",
+  "mobile_number": "Mobilnummer",
   "role": "Rolle",
   "timezone": "Zeitzone",
   "avatar": "Profilbild",
