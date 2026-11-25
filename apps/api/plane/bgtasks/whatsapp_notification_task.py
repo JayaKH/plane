@@ -6,13 +6,16 @@ import logging
 import os
 import re
 import uuid
+from datetime import timedelta
 from typing import Optional, Tuple, Union
 
 import requests
 from celery import shared_task
+from django.db.models import Q
+from django.utils import timezone
 
 # Module imports
-from plane.db.models import Issue, User
+from plane.db.models import Issue, StateGroup, User
 from plane.license.utils.instance_value import get_configuration_value
 from plane.settings.redis import redis_instance
 from plane.utils.exception_logger import log_exception
@@ -21,9 +24,9 @@ logger = logging.getLogger("plane.worker")
 
 
 def get_waha_config() -> Tuple[str | None, str | None, str | None]:
-    """
-    Helper to get WAHA configuration values, returns:
-        - base_url, api_key, session
+    """Helper to get WAHA configuration values, returns:
+
+    - base_url, api_key, session
     """
     base_url, api_key, session = get_configuration_value(
         [
@@ -55,6 +58,7 @@ def get_waha_config() -> Tuple[str | None, str | None, str | None]:
         return None, None, None
 
     return base_url.strip(), api_key.strip(), session.strip()
+
 
 def format_chat_id(mobile_number: Optional[str]) -> Optional[str]:
     """Format user mobile number into WAHA chatId (e.g., 12132132130@c.us).
@@ -114,7 +118,7 @@ def send_whatsapp_notification(
     text: Optional[str] = None,
     **kwargs,
 ):
-    """Celery task to send a WhatsApp notification to a mentioned user.
+    """Celery task to send a WhatsApp notification to a user.
 
     Skips notification if mobile number is empty or not set.
     """
@@ -125,19 +129,23 @@ def send_whatsapp_notification(
         if not notification_text:
             logger.warning("No message or text provided for WhatsApp notification. Skipping.")
             return None
-        
-        try:
-            ri = redis_instance()
-            base_api = ri.get(str(issue_id)).decode() if ri.get(str(issue_id)) else None
 
-            issue = Issue.objects.get(pk=issue_id)
-            workspace_slug = str(issue.project.workspace.slug)
-            project_id = str(issue.project.id)
+        if issue_id:
+            try:
+                ri = redis_instance()
+                base_api = ri.get(str(issue_id)).decode() if ri.get(str(issue_id)) else None
+                base_url = (base_api or os.environ.get("WEB_URL")).strip().rstrip("/")
 
-            if base_api and workspace_slug and project_id and issue_id:
-                notification_text = f"{notification_text}\n\n{base_api}/{workspace_slug}/projects/{str(project_id)}/issues/{issue_id}"
-        except Exception as e:
-            log_exception(e)
+                issue = Issue.objects.get(pk=issue_id)
+                workspace_slug = str(issue.project.workspace.slug)
+                project_id = str(issue.project.id)
+
+                if base_url and workspace_slug and project_id:
+                    issue_link = f"{base_url}/{workspace_slug}/projects/{project_id}/issues/{issue_id}"
+                    if issue_link not in notification_text:
+                        notification_text = f"{notification_text}\n\n{issue_link}"
+            except Exception as e:
+                log_exception(e)
 
         if not chat_id:
             if not target_user_id:
@@ -170,3 +178,74 @@ def send_whatsapp_notification(
     except Exception as e:
         log_exception(e)
         return None
+
+
+@shared_task
+def send_due_date_whatsapp_notifications():
+    """Daily background task to send WhatsApp notifications via WAHA for any issue
+
+    in any project that is in the "Todo" or "In Progress" state and has a due
+    date of tomorrow, today, or a past date.
+    Scheduled daily at 8:00 AM WIB (1:00 AM UTC).
+    Issues with no due date are skipped.
+    """
+    try:
+        today = timezone.now().date()
+        tomorrow = today + timedelta(days=1)
+
+        manager = getattr(Issue, "issue_objects", Issue.objects)
+        issues = (
+            manager.filter(
+                is_draft=False,
+                target_date__isnull=False,
+                target_date__lte=tomorrow,
+                archived_at__isnull=True,
+                project__archived_at__isnull=True,
+            )
+            .filter(
+                Q(state__name__iexact="Todo")
+                | Q(state__name__iexact="In Progress")
+            )
+            .select_related("state", "project", "project__workspace", "created_by")
+            .prefetch_related("assignees")
+        )
+
+        sent_count = 0
+        for issue in issues:
+            if issue.target_date < today:
+                days_overdue = (today - issue.target_date).days
+                days_text = f"{days_overdue} day{'s' if days_overdue > 1 else ''} overdue"
+                due_status = f"is {days_text} (due {issue.target_date}, )"
+            elif issue.target_date == today:
+                due_status = f"is due today ({issue.target_date})"
+            else:
+                due_status = f"is due tomorrow ({issue.target_date})"
+
+            project_identifier = issue.project.identifier if issue.project and issue.project.identifier else ""
+            issue_key = f"{project_identifier}-{issue.sequence_id}" if project_identifier else f"#{issue.sequence_id}"
+            state_name = issue.state.name if issue.state else "Unknown"
+
+            message = (
+                f"Reminder: Issue *{issue_key}* ({issue.name}) {due_status}. State: *{state_name}*"
+            )
+
+            assignees = list(issue.assignees.all())
+            recipients = assignees if assignees else ([issue.created_by] if issue.created_by else [])
+
+            for recipient in recipients:
+                if not recipient or not recipient.mobile_number or not str(recipient.mobile_number).strip():
+                    continue
+
+                send_whatsapp_notification.delay(
+                    issue_id=str(issue.id),
+                    receiver_id=str(recipient.id),
+                    message=message,
+                )
+                sent_count += 1
+
+        logger.info(f"send_due_date_whatsapp_notifications finished. Dispatched {sent_count} notifications.")
+        return sent_count
+    except Exception as e:
+        log_exception(e)
+        logger.error(f"Error executing send_due_date_whatsapp_notifications: {e}")
+        return 0
