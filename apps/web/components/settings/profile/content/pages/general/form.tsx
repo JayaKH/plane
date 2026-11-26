@@ -378,7 +378,7 @@ export const GeneralProfileSettingsForm = observer(function GeneralProfileSettin
               control={control}
               name="mobile_number"
               rules={{ validate: validateMobileNumber }}
-              render={({ field: { value, onChange, ref } }) => (
+              render={({ field: { value, ref } }) => (
                 <InputField
                   size="lg"
                   orientation="vertical"
@@ -386,8 +386,9 @@ export const GeneralProfileSettingsForm = observer(function GeneralProfileSettin
                   name="mobile_number"
                   type="tel"
                   label={t("mobile_number")}
-                  value={value}
-                  onChange={onChange}
+                  // value={value}
+                  // onChange={onChange}
+                  defaultValue={value}
                   ref={ref}
                   error={errors.mobile_number?.message}
                   placeholder="Enter your mobile number"
