@@ -11,11 +11,11 @@ from typing import Optional, Tuple, Union
 
 import requests
 from celery import shared_task
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 # Module imports
-from plane.db.models import Issue, StateGroup, User
+from plane.db.models import Issue, IssueAssignee, User
 from plane.license.utils.instance_value import get_configuration_value
 from plane.settings.redis import redis_instance
 from plane.utils.exception_logger import log_exception
@@ -181,21 +181,19 @@ def send_whatsapp_notification(
 
 
 @shared_task
-def send_due_date_whatsapp_notifications():
+def send_due_date_reminder():
     """Daily background task to send WhatsApp notifications via WAHA for any issue
 
     in any project that is in the "Todo" or "In Progress" state and has a due
     date of tomorrow, today, or a past date.
-    Scheduled daily at 8:00 AM WIB (1:00 AM UTC).
     Issues with no due date are skipped.
     """
     try:
         today = timezone.now().date()
         tomorrow = today + timedelta(days=1)
 
-        manager = getattr(Issue, "issue_objects", Issue.objects)
         issues = (
-            manager.filter(
+            Issue.objects.filter(
                 is_draft=False,
                 target_date__isnull=False,
                 target_date__lte=tomorrow,
@@ -206,8 +204,13 @@ def send_due_date_whatsapp_notifications():
                 Q(state__name__iexact="Todo")
                 | Q(state__name__iexact="In Progress")
             )
-            .select_related("state", "project", "project__workspace", "created_by")
-            .prefetch_related("assignees")
+            .select_related("project", "state", "created_by")
+            .prefetch_related(
+                Prefetch(
+                    "issue_assignee",
+                    queryset=IssueAssignee.objects.select_related("assignee"),
+                )
+            )
         )
 
         sent_count = 0
@@ -215,21 +218,22 @@ def send_due_date_whatsapp_notifications():
             if issue.target_date < today:
                 days_overdue = (today - issue.target_date).days
                 days_text = f"{days_overdue} day{'s' if days_overdue > 1 else ''} overdue"
-                due_status = f"is {days_text} (due {issue.target_date}, )"
+                due_status = f"is {days_text} (due {issue.target_date})"
             elif issue.target_date == today:
                 due_status = f"is due today ({issue.target_date})"
             else:
                 due_status = f"is due tomorrow ({issue.target_date})"
 
             project_identifier = issue.project.identifier if issue.project and issue.project.identifier else ""
-            issue_key = f"{project_identifier}-{issue.sequence_id}" if project_identifier else f"#{issue.sequence_id}"
-            state_name = issue.state.name if issue.state else "Unknown"
+            issue_identifier = f"{project_identifier}-{issue.sequence_id}" if project_identifier else f"#{issue.sequence_id}"
+            state_status = f"State: *{issue.state.name}*" if issue.state and issue.state.name else ""
 
             message = (
-                f"Reminder: Issue *{issue_key}* ({issue.name}) {due_status}. State: *{state_name}*"
-            )
+                f"Reminder: Issue *{issue_identifier}* ({issue.name}) assigned to you {due_status}. {state_status}"
+                if assignees else f"Reminder: Your issue *{issue_identifier}* ({issue.name}) {due_status}. {state_status}"
+            ).strip()
 
-            assignees = list(issue.assignees.all())
+            assignees = [ia.assignee for ia in issue.issue_assignee.all() if ia.assignee]
             recipients = assignees if assignees else ([issue.created_by] if issue.created_by else [])
 
             for recipient in recipients:
@@ -243,9 +247,9 @@ def send_due_date_whatsapp_notifications():
                 )
                 sent_count += 1
 
-        logger.info(f"send_due_date_whatsapp_notifications finished. Dispatched {sent_count} notifications.")
+        logger.info(f"send_due_date_reminder finished. Dispatched {sent_count} notifications.")
         return sent_count
     except Exception as e:
         log_exception(e)
-        logger.error(f"Error executing send_due_date_whatsapp_notifications: {e}")
+        logger.error(f"Error executing send_due_date_reminder: {e}")
         return 0
