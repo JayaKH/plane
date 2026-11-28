@@ -60,7 +60,7 @@ app.conf.beat_schedule = {
     # Occurs once every day
     "send-daily-due-date-whatsapp-notifications": {
         "task": "plane.bgtasks.whatsapp_notification_task.send_due_date_whatsapp_notifications",
-        "schedule": crontab(hour=1, minute=0),  # UTC 01:00 (8:00 AM WIB)
+        "schedule": crontab(hour=1, minute=0, day_of_week='mon-fri'),  # UTC 01:00 weekdays
     },
     "check-every-day-to-delete-hard-delete": {
         "task": "plane.bgtasks.deletion_task.hard_delete",
